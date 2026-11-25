@@ -1,54 +1,60 @@
 
-from selenium import webdriver
+import os
+import pytest
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-
-def get_browser(browser):
-    browser = browser.lower()
-    if browser == "chrome":
-        driver = webdriver.Chrome()
-    elif browser == "firefox":
-        driver = webdriver.Firefox()
-    elif browser == "edge":
-        driver = webdriver.Edge()
-    else:
-        raise ValueError(f"Unsupported browser: {browser}")
-    driver.maximize_window()
-    return driver
+from testScripts.browser_config import get_browser
 
 
-def test_login(browser="firefox"):
-    driver = get_browser(browser)
+@pytest.mark.parametrize("browser", ["chrome", "firefox"])
+def test_login(browser):
+
+    driver = get_browser(browser, headless=True)
+
+    os.makedirs("screenshots/login", exist_ok=True)
+
     try:
-        wait = WebDriverWait(driver, 50)
-        driver.get("https://www.saucedemo.com")
-        username_input = wait.until(EC.presence_of_element_located((By.ID, "user-name")))
-        password_input = wait.until(EC.presence_of_element_located((By.ID, "password")))
-        username_input.send_keys("standard_user")
-        password_input.send_keys("secret_sauce")
-        login_button = wait.until(EC.element_to_be_clickable((By.ID, "login-button")))
-        login_button.click()
-        
-        url = driver.current_url
-        assert url == "https://www.saucedemo.com/inventory.html", f"Expected URL: https://www.saucedemo.com/inventory.html, but got: {url}"
+        wait = WebDriverWait(driver, 30)
 
-        print("TEST PASSED")
-        print(f"Browser: {browser}")
-        print(f"Title: {driver.title}")
-        print(f"URL: {driver.current_url}")
-        driver.save_screenshot(f"screenshots - login/{browser}_login_success.png")
+        driver.get("https://www.saucedemo.com/")
+
+        username = wait.until(
+            EC.visibility_of_element_located((By.ID, "user-name"))
+        )
+
+        password = driver.find_element(By.ID, "password")
+
+        username.send_keys("standard_user")
+        password.send_keys("secret_sauce")
+
+        driver.find_element(By.ID, "login-button").click()
+
+        wait.until(
+            EC.url_to_be(
+                "https://www.saucedemo.com/inventory.html"
+            )
+        )
+
+        assert driver.current_url == (
+            "https://www.saucedemo.com/inventory.html"
+        )
+
+        driver.save_screenshot(
+            f"screenshots/login/{browser}_login_success.png"
+        )
+
+        print(f"TEST PASSED: {browser}")
 
     except Exception as e:
-        print(f"TEST FAILED: {e}")
-        # Capture screenshot when test fails
-        driver.save_screenshot("failure_screenshot.png")
-        raise
+
+        driver.save_screenshot(
+            f"screenshots/login/{browser}_failure.png"
+        )
+
+        pytest.fail(f"{browser} login failed: {e}")
+
     finally:
         driver.quit()
-
-if __name__ == "__main__":
-    test_login("chrome")
-    test_login("firefox")
-    test_login("edge")
