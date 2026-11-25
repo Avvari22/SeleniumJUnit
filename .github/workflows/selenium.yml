@@ -1,9 +1,10 @@
 
-name: Selenium Automation HTML Report
+name: Selenium HTML Report Publishing
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -11,20 +12,12 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: selenium-pages
-  cancel-in-progress: false
-
 jobs:
-  selenium-tests:
+  selenium:
     runs-on: ubuntu-latest
 
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -37,66 +30,52 @@ jobs:
           python -m pip install --upgrade pip
           pip install selenium pytest pytest-html
 
-      - name: Create Report Directory
+      - name: Create Reports Directory
         run: |
           mkdir -p reports/site
-          mkdir -p screenshots
 
       - name: Execute Selenium Tests
         id: tests
         continue-on-error: true
         run: |
-          pytest -v -s testScripts/ \
+          pytest testScripts/ -v -s \
             --html=reports/site/index.html \
             --self-contained-html
 
       - name: Verify HTML Report
         if: always()
         run: |
-          if [ ! -s reports/site/index.html ]; then
-            echo "HTML report was not generated"
-            exit 1
-          fi
-          echo "HTML report generated successfully"
+          echo "Checking HTML report..."
+          ls -lah reports/site/
+          test -s reports/site/index.html
 
-      # Downloadable report in Actions
-      - name: Upload HTML Report
+      - name: Upload Downloadable HTML Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: selenium-html-report
-          path: reports/site/
-          if-no-files-found: error
+          path: reports/site/index.html
 
-      # Prepare GitHub Pages
-      - name: Configure GitHub Pages
+      - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      # IMPORTANT: This creates the github-pages artifact
+      # Keep the default artifact name: github-pages
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          name: github-pages
           path: reports/site/
 
-      # Publish report
-      - name: Deploy HTML Report
+      # Deploy the artifact from this same job and run
+      - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          artifact_name: github-pages
 
-      # Display public report URL in Actions summary
-      - name: Publish Report Link
+      - name: Display Published Report URL
         if: success()
         run: |
-          echo "## Selenium Automation HTML Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[Open HTML Test Report](${{ steps.deployment.outputs.page_url }})" >> $GITHUB_STEP_SUMMARY
+          echo "## Selenium HTML Report" >> $GITHUB_STEP_SUMMARY
+          echo "[View HTML Report](${{ steps.deployment.outputs.page_url }})" >> $GITHUB_STEP_SUMMARY
 
-      # Keep test failures visible
-      - name: Report Test Status
+      - name: Mark Test Failures
         if: always() && steps.tests.outcome == 'failure'
-        run: |
-          echo "Selenium tests failed. Review the published HTML report."
-          exit 1
+        run: exit 1
