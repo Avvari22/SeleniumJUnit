@@ -66,11 +66,20 @@ jobs:
       - name: Upload GitHub Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          name: github-pages
           path: reports/site/
+          retention-days: 1
+
+      - name: Verify Uploaded Artifact
+        run: |
+          echo "HTML report files:"
+          ls -lah reports/site/
 
       - name: Deploy HTML Report
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages
 
       - name: Preserve Test Failure Status
         if: steps.tests.outcome == 'failure'
