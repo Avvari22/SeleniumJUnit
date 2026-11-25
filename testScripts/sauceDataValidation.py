@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 # Read test data from CSV
 CSV_FILE = (
-    Path(__file__).resolve().parent
+    Path(__file__).resolve().parent.parent
     / "test_data"
     / "saucedemo_products.csv"
 )
