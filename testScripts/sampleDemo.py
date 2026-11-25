@@ -6,7 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from testScripts.browser_config import get_browser
+from testScripts.browserConfig import get_browser
 
 
 @pytest.mark.parametrize("browser", ["chrome", "firefox"])
