@@ -1,5 +1,5 @@
 
-name: Selenium Automation with HTML Report
+name: Selenium Automation HTML Report
 
 on:
   push:
@@ -12,12 +12,16 @@ permissions:
   id-token: write
 
 concurrency:
-  group: github-pages
-  cancel-in-progress: true
+  group: selenium-pages
+  cancel-in-progress: false
 
 jobs:
   selenium-tests:
     runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout Repository
@@ -38,7 +42,7 @@ jobs:
           mkdir -p reports/site
           mkdir -p screenshots
 
-      - name: Run Selenium Tests
+      - name: Execute Selenium Tests
         id: tests
         continue-on-error: true
         run: |
@@ -49,10 +53,14 @@ jobs:
       - name: Verify HTML Report
         if: always()
         run: |
-          ls -lah reports/site/
-          test -s reports/site/index.html
+          if [ ! -s reports/site/index.html ]; then
+            echo "HTML report was not generated"
+            exit 1
+          fi
+          echo "HTML report generated successfully"
 
-      - name: Upload HTML Report Artifact
+      # Downloadable report in Actions
+      - name: Upload HTML Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -60,29 +68,35 @@ jobs:
           path: reports/site/
           if-no-files-found: error
 
+      # Prepare GitHub Pages
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload GitHub Pages Artifact
+      # IMPORTANT: This creates the github-pages artifact
+      - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
           name: github-pages
           path: reports/site/
-          retention-days: 1
 
-      - name: Verify Uploaded Artifact
-        run: |
-          echo "HTML report files:"
-          ls -lah reports/site/
-
+      # Publish report
       - name: Deploy HTML Report
         id: deployment
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages
 
-      - name: Preserve Test Failure Status
-        if: steps.tests.outcome == 'failure'
+      # Display public report URL in Actions summary
+      - name: Publish Report Link
+        if: success()
         run: |
-          echo "Selenium tests failed. HTML report is published."
+          echo "## Selenium Automation HTML Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[Open HTML Test Report](${{ steps.deployment.outputs.page_url }})" >> $GITHUB_STEP_SUMMARY
+
+      # Keep test failures visible
+      - name: Report Test Status
+        if: always() && steps.tests.outcome == 'failure'
+        run: |
+          echo "Selenium tests failed. Review the published HTML report."
           exit 1
